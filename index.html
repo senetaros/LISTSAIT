@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система управления контактами</title>
+    <style>
+        /* Общие стили */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f9;
+        }
+
+        /* Шапка */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #searchInput {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 8px 12px;
+            width: 300px;
+        }
+
+        /* Кнопка добавления клиента */
+        #addClientBtn {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #addClientBtn:hover {
+            background-color: #0056b3;
+        }
+
+        /* Таблица */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        th,
+        td {
+            border: 1px solid #e0e0e0;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f9f9f9;
+            cursor: pointer;
+        }
+
+        th:hover {
+            background-color: #f1f1f1;
+        }
+
+        /* Индикатор загрузки */
+        .loading {
+            text-align: center;
+            margin: 20px;
+            font-size: 20px;
+            display: none;
+        }
+
+        /* Модальное окно */
+        .modal {
+            display: none;
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            width: 400px;
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: black;
+        }
+
+        label {
+            margin-top: 10px;
+            display: block;
+        }
+
+        input[type="text"] {
+            width: calc(100% - 20px);
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button[type="submit"],
+        button.delete {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px;
+            margin-top: 15px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button[type="submit"]:hover,
+        button.delete:hover {
+            background-color: #0056b3;
+        }
+
+        /* Кнопка "Добавить контакт" */
+        .add-contact-btn {
+            background-color: #28a745;
+        }
+
+        .add-contact-btn:hover {
+            background-color: #218838;
+        }
+
+        .error-message {
+            color: red;
+            margin-top: 10px;
+        }
+
+        .success-message {
+            color: green;
+            margin-top: 10px;
+        }
+
+        .contact-field {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <img src="path/to/logo.png" alt="Логотип компании" />
+        <input type="text" id="searchInput" placeholder="Поиск клиентов" />
+    </header>
+
+    <button id="addClientBtn">Добавить клиента</button>
+    <div id="loading" class="loading">Загрузка...</div>
+
+    <table id="clientsTable">
+        <thead>
+            <tr>
+                <th onclick="sortTable('firstName')">Имя <span id="sortIconFirstName"></span></th>
+                <th onclick="sortTable('lastName')">Фамилия <span id="sortIconLastName"></span></th>
+                <th onclick="sortTable('middleName')">Отчество <span id="sortIconMiddleName"></span></th>
+                <th>Контакты</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody id="clientsBody"></tbody>
+    </table>
+
+    <!-- Модальное окно для добавления/редактирования клиента -->
+    <div id="clientModal" class="modal" onclick="closeModal(event)">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal(event)">&times;</span>
+            <h2 id="modalTitle">Добавить клиента</h2>
+            <div id="errorMessage" class="error-message"></div>
+            <form id="clientForm">
+                <label for="firstName">Имя:</label>
+                <input type="text" id="firstName" required>
+                <label for="lastName">Фамилия:</label>
+                <input type="text" id="lastName" required>
+                <label for="middleName">Отчество:</label>
+                <input type="text" id="middleName">
+                <div id="contactsContainer"></div>
+                <button type="button" class="add-contact-btn" id="addContactBtn">Добавить контакт</button>
+                <button type="submit">Сохранить</button>
+                <button type="button" id="deleteClientBtn" class="delete" style="display:none;">Удалить клиента</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно для подтверждения удаления -->
+    <div id="deleteConfirmationModal" class="modal" onclick="closeModal(event)">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal(event)">&times;</span>
+            <h2>Подтверждение удаления</h2>
+            <p>Вы действительно хотите удалить данного клиента?</p>
+            <button class="delete" id="confirmDeleteBtn">Удалить</button>
+            <button class="close" onclick="closeModal(event)">Отмена</button>
+        </div>
+    </div>
+
+    <script>
+        let clients = [];
+        let isEditing = false;
+        let editingIndex;
+        let currentSort = { column: 'firstName', direction: 'asc' };
+
+        document.getElementById('addClientBtn').addEventListener('click', openModal);
+        document.getElementById('clientForm').addEventListener('submit', saveClient);
+        document.getElementById('searchInput').addEventListener('input', debounceSearch);
+        document.getElementById('addContactBtn').addEventListener('click', addContactField);
+        document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        let debounceTimer;
+        function debounceSearch() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                searchClients();
+            }, 300);
+        }
+
+        function openModal(client = {}) {
+            document.getElementById('clientModal').style.display = 'flex';
+            const contactsContainer = document.getElementById('contactsContainer');
+            contactsContainer.innerHTML = ''; // Очистка предыдущих контактов
+            document.getElementById('errorMessage').innerText = ''; // Сброс сообщений об ошибках
+
+            if (client.firstName) {
+                document.getElementById('modalTitle').innerText = 'Редактировать клиента';
+                isEditing = true;
+                editingIndex = clients.indexOf(client);
+                document.getElementById('firstName').value = client.firstName;
+                document.getElementById('lastName').value = client.lastName;
+                document.getElementById('middleName').value = client.middleName;
+                client.contacts.forEach(contact => {
+                    addContactField(contact.type, contact.value);
+                });
+                document.getElementById('deleteClientBtn').style.display = 'block';
+            } else {
+                document.getElementById('modalTitle').innerText = 'Добавить клиента';
+                document.getElementById('clientForm').reset();
+                isEditing = false;
+                addContactField(); // Добавление одного контактного поля по умолчанию
+                document.getElementById('deleteClientBtn').style.display = 'none';
+            }
+        }
+
+        function closeModal(event) {
+            if (event.target === document.getElementById('clientModal') || event.target === document.getElementById('deleteConfirmationModal') || event.target.className === 'close') {
+                document.getElementById('clientModal').style.display = 'none';
+                document.getElementById('deleteConfirmationModal').style.display = 'none';
+            }
+        }
+
+        function addContactField(type = '', value = '') {
+            const contactsContainer = document.getElementById('contactsContainer');
+            const contactCount = contactsContainer.children.length;
+
+            if (contactCount < 10) {
+                const div = document.createElement('div');
+                div.classList.add('contact-field'); // Добавление класса для стилей
+                div.innerHTML = `
+                    <label>Тип контакта:</label>
+                    <input type="text" value="${type}" placeholder="Телефон, Email" required>
+                    <label>Значение контакта:</label>
+                    <input type="text" value="${value}" placeholder="1234567890 или email@example.com" required>
+                    <button type="button" onclick="removeContactField(this)">✖</button>
+                `;
+                contactsContainer.appendChild(div);
+            } else {
+                alert('Максимум 10 контактов');
+            }
+        }
+
+        function removeContactField(button) {
+            button.parentElement.remove();
+        }
+
+        async function saveClient(event) {
+            event.preventDefault();
+
+            const newClient = {
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                middleName: document.getElementById('middleName').value,
+                contacts: []
+            };
+
+            const contactFields = document.getElementById('contactsContainer').children;
+            for (let i = 0; i < contactFields.length; i++) {
+                const type = contactFields[i].querySelector('input[type="text"]').value.trim();
+                const value = contactFields[i].querySelector('input[type="text"]:nth-of-type(2)').value.trim();
+                // Проверка заполненности полей типа контакта и значения
+                if (type && value) {
+                    newClient.contacts.push({ type, value });
+                } else {
+                    document.getElementById('errorMessage').innerText = 'Пожалуйста, заполните все поля контактов.';
+                    return;
+                }
+            }
+
+            try {
+                let response;
+                if (isEditing) {
+                    // Изменение существующего клиента
+                    const clientId = clients[editingIndex].id; // предполагается, что у клиента есть уникальный идентификатор
+                    response = await fetch(`/api/clients/${clientId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newClient)
+                    });
+                } else {
+                    // Добавление нового клиента
+                    response = await fetch('/api/clients', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newClient)
+                    });
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    handleErrorResponse(errorData);
+                    return; // Остановить дальнейшую обработку
+                }
+
+                // Успешное сохранение
+                closeModal();
+                await loadClients(); // Обновление списка клиентов
+            } catch (error) {
+                document.getElementById('errorMessage').innerText = "Что-то пошло не так...";
+            }
+        }
+
+        function handleErrorResponse(errorData) {
+            const errorMessage = document.getElementById('errorMessage');
+            if (errorData && errorData.message) {
+                errorMessage.innerText = errorData.message;
+            } else {
+                errorMessage.innerText = "Что-то пошло не так...";
+            }
+        }
+
+        async function loadClients() {
+            showLoading();
+            try {
+                const response = await fetch('/api/clients'); // Ваш API для получения клиентов
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                clients = await response.json();
+                renderClients();
+            } catch (error) {
+                console.error('Ошибка загрузки клиентов:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function renderClients() {
+            const tbody = document.getElementById('clientsBody');
+            tbody.innerHTML = '';
+
+            clients.forEach(client => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${client.firstName}</td>
+                    <td>${client.lastName}</td>
+                    <td>${client.middleName}</td>
+                    <td>${client.contacts.map(contact => `${contact.type}: ${contact.value}`).join(', ')}</td>
+                    <td>
+                        <button onclick='openModal(${JSON.stringify(client).replace(/"/g, "&quot;")})'>Изменить</button>
+                        <button onclick='openDeleteConfirmation(${clients.indexOf(client)})'>Удалить</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function openDeleteConfirmation(index) {
+            editingIndex = index;
+            document.getElementById('deleteConfirmationModal').style.display = 'flex';
+        }
+
+        async function confirmDelete() {
+            try {
+                const clientId = clients[editingIndex].id; // Получение идентификатора клиента
+                const response = await fetch(`/api/clients/${clientId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Ошибка при удалении клиента');
+                }
+
+                clients.splice(editingIndex, 1);
+                renderClients();
+                closeModal();
+            } catch (error) {
+                console.error('Ошибка при удалении клиента:', error);
+            }
+        }
+
+        function searchClients() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filteredClients = clients.filter(client => {
+                return (
+                    client.firstName.toLowerCase().includes(query) ||
+                    client.lastName.toLowerCase().includes(query) ||
+                    client.middleName.toLowerCase().includes(query) ||
+                    client.contacts.some(contact =>
+                        contact.type.toLowerCase().includes(query) || contact.value.toLowerCase().includes(query)
+                    )
+                );
+            });
+
+            renderFilteredClients(filteredClients);
+        }
+
+        function renderFilteredClients(filteredClients) {
+            const tbody = document.getElementById('clientsBody');
+            tbody.innerHTML = '';
+            filteredClients.forEach(client => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${client.firstName}</td>
+                    <td>${client.lastName}</td>
+                    <td>${client.middleName}</td>
+                    <td>${client.contacts.map(contact => `${contact.type}: ${contact.value}`).join(', ')}</td>
+                    <td>
+                        <button onclick='openModal(${JSON.stringify(client).replace(/"/g, "&quot;")})'>Изменить</button>
+                        <button onclick='openDeleteConfirmation(${clients.indexOf(client)})'>Удалить</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            if (filteredClients.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="5">Клиенты не найдены</td>`;
+                tbody.appendChild(row);
+            }
+        }
+
+        function sortTable(column) {
+            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            clients.sort((a, b) => {
+                const aValue = a[column].toLowerCase();
+                const bValue = b[column].toLowerCase();
+                return currentSort.direction === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+            });
+            renderClients();
+            updateSortIcons(column);
+        }
+
+        function updateSortIcons(sortedColumn) {
+            const allIcons = ['sortIconFirstName', 'sortIconLastName', 'sortIconMiddleName'];
+            allIcons.forEach(icon => {
+                document.getElementById(icon).textContent = ''; // Сбросить все иконки
+            });
+
+            const sortIcon = document.getElementById(`sortIcon${capitalizeFirstLetter(sortedColumn)}`);
+            sortIcon.textContent = currentSort.direction === 'asc' ? '↑' : '↓';
+        }
+
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+
+        // Инициализация
+        showLoading();
+        setTimeout(() => {
+            hideLoading();
+            loadClients(); // Загружаем первоначальный список клиентов
+        }, 1500); // Задержка для показа загрузки, в реальном коде нужно убрать
+
+    </script>
+
+</body>
+
+</html>
